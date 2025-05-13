@@ -1,0 +1,129 @@
+version: '3.8'
+
+services:
+  # Sensor Layer
+  network-monitor:
+    image: netguardian/network-monitor:latest
+    container_name: netguardian-network-monitor
+    restart: unless-stopped
+    networks:
+      - netguardian-network
+    
+  endpoint-agent:
+    image: netguardian/endpoint-agent:latest
+    container_name: netguardian-endpoint-agent
+    restart: unless-stopped
+    networks:
+      - netguardian-network
+  
+  log-collector:
+    image: netguardian/log-collector:latest
+    container_name: netguardian-log-collector
+    restart: unless-stopped
+    networks:
+      - netguardian-network
+  
+  threat-feed:
+    image: netguardian/threat-feed:latest
+    container_name: netguardian-threat-feed
+    restart: unless-stopped
+    networks:
+      - netguardian-network
+  
+  # Processing Layer
+  detection-engine:
+    image: netguardian/detection-engine:latest
+    container_name: netguardian-detection-engine
+    restart: unless-stopped
+    networks:
+      - netguardian-network
+  
+  analytics-pipeline:
+    image: netguardian/analytics-pipeline:latest
+    container_name: netguardian-analytics-pipeline
+    restart: unless-stopped
+    networks:
+      - netguardian-network
+  
+  correlation-service:
+    image: netguardian/correlation-service:latest
+    container_name: netguardian-correlation-service
+    restart: unless-stopped
+    networks:
+      - netguardian-network
+  
+  ml-component:
+    image: netguardian/ml-component:latest
+    container_name: netguardian-ml-component
+    restart: unless-stopped
+    networks:
+      - netguardian-network
+  
+  # Response Layer
+  automation-controller:
+    image: netguardian/automation-controller:latest
+    container_name: netguardian-automation-controller
+    restart: unless-stopped
+    networks:
+      - netguardian-network
+  
+  firewall-manager:
+    image: netguardian/firewall-manager:latest
+    container_name: netguardian-firewall-manager
+    restart: unless-stopped
+    networks:
+      - netguardian-network
+  
+  # Data Layer
+  event-store:
+    image: netguardian/event-store:latest
+    container_name: netguardian-event-store
+    restart: unless-stopped
+    networks:
+      - netguardian-network
+    volumes:
+      - event-data:/data
+  
+  intelligence-db:
+    image: netguardian/intelligence-db:latest
+    container_name: netguardian-intelligence-db
+    restart: unless-stopped
+    networks:
+      - netguardian-network
+    volumes:
+      - intel-data:/data
+  
+  # Presentation Layer
+  dashboard:
+    image: netguardian/dashboard:latest
+    container_name: netguardian-dashboard
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    networks:
+      - netguardian-network
+  
+  api-gateway:
+    image: netguardian/api-gateway:latest
+    container_name: netguardian-api-gateway
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    networks:
+      - netguardian-network
+  
+  # AI Layer
+  security-orchestrator:
+    image: netguardian/security-orchestrator:latest
+    container_name: netguardian-security-orchestrator
+    restart: unless-stopped
+    networks:
+      - netguardian-network
+
+networks:
+  netguardian-network:
+    driver: bridge
+
+volumes:
+  event-data:
+  intel-data: 

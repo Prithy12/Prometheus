@@ -1,0 +1,74 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: netguardian-core
+  labels:
+    app: netguardian
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: netguardian
+  template:
+    metadata:
+      labels:
+        app: netguardian
+    spec:
+      containers:
+      - name: api-gateway
+        image: netguardian/api-gateway:latest
+        ports:
+        - containerPort: 8000
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
+      - name: security-orchestrator
+        image: netguardian/security-orchestrator:latest
+        resources:
+          limits:
+            cpu: "1000m"
+            memory: "1Gi"
+          requests:
+            cpu: "500m"
+            memory: "512Mi"
+      - name: dashboard
+        image: netguardian/dashboard:latest
+        ports:
+        - containerPort: 80
+        resources:
+          limits:
+            cpu: "300m"
+            memory: "256Mi"
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: netguardian-api
+spec:
+  selector:
+    app: netguardian
+  ports:
+  - name: api
+    port: 8000
+    targetPort: 8000
+  type: ClusterIP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: netguardian-dashboard
+spec:
+  selector:
+    app: netguardian
+  ports:
+  - name: dashboard
+    port: 80
+    targetPort: 80
+  type: LoadBalancer 
