@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NetGuardian Security Dashboard</title>
+    <link rel="stylesheet" href="css/styles.css">
+    <!-- Alpine.js for reactivity - lightweight alternative to larger frameworks -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <!-- Chart.js for visualizations -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body x-data="dashboard()">
+    <div class="container">
+        <header>
+            <h1>NetGuardian Security Dashboard</h1>
+            <div class="user-info" x-show="isAuthenticated">
+                <span x-text="'User: ' + user.username"></span>
+                <button @click="logout" class="btn-logout">Logout</button>
+            </div>
+        </header>
+
+        <!-- Login Form -->
+        <div class="login-container" x-show="!isAuthenticated">
+            <h2>Login</h2>
+            <form @submit.prevent="login">
+                <div class="form-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" x-model="loginForm.username" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" x-model="loginForm.password" required>
+                </div>
+                <div class="form-group" x-show="loginError">
+                    <p class="error" x-text="loginError"></p>
+                </div>
+                <button type="submit" class="btn-primary">Login</button>
+            </form>
+        </div>
+
+        <!-- Dashboard Content -->
+        <div class="dashboard-container" x-show="isAuthenticated">
+            <!-- Summary Statistics -->
+            <section class="summary-stats">
+                <h2>Summary Statistics</h2>
+                <div class="stats-container">
+                    <div class="stat-card">
+                        <h3>Total Events</h3>
+                        <p class="stat-number" x-text="stats.totalEvents"></p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>High Severity</h3>
+                        <p class="stat-number high-severity" x-text="stats.highSeverity"></p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Medium Severity</h3>
+                        <p class="stat-number medium-severity" x-text="stats.mediumSeverity"></p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Low Severity</h3>
+                        <p class="stat-number low-severity" x-text="stats.lowSeverity"></p>
+                    </div>
+                </div>
+                <div class="charts-container">
+                    <div class="chart-card">
+                        <h3>Events by Type</h3>
+                        <canvas id="eventsByTypeChart"></canvas>
+                    </div>
+                    <div class="chart-card">
+                        <h3>Events by Severity</h3>
+                        <canvas id="eventsBySeverityChart"></canvas>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Security Events Section -->
+            <section class="security-events">
+                <h2>Security Events</h2>
+                <div class="filter-container">
+                    <div class="search-box">
+                        <input type="text" placeholder="Search events..." x-model="filters.search" @input="filterEvents">
+                    </div>
+                    <div class="filter-options">
+                        <select x-model="filters.eventType" @change="filterEvents">
+                            <option value="">All Event Types</option>
+                            <option value="intrusion_attempt">Intrusion Attempt</option>
+                            <option value="malware_detection">Malware Detection</option>
+                            <option value="reconnaissance">Reconnaissance</option>
+                            <option value="credential_access">Credential Access</option>
+                            <option value="lateral_movement">Lateral Movement</option>
+                            <option value="privilege_escalation">Privilege Escalation</option>
+                            <option value="data_exfiltration">Data Exfiltration</option>
+                            <option value="defense_evasion">Defense Evasion</option>
+                            <option value="command_and_control">Command & Control</option>
+                            <option value="impact">Impact</option>
+                            <option value="other">Other</option>
+                        </select>
+                        <select x-model="filters.severity" @change="filterEvents">
+                            <option value="">All Severities</option>
+                            <option value="high">High (8-10)</option>
+                            <option value="medium">Medium (4-7)</option>
+                            <option value="low">Low (1-3)</option>
+                        </select>
+                        <button @click="refreshEvents" class="btn-refresh">Refresh</button>
+                    </div>
+                </div>
+                
+                <div class="events-table-container">
+                    <table class="events-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Type</th>
+                                <th>Source IP</th>
+                                <th>Destination</th>
+                                <th>Severity</th>
+                                <th>Description</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="event in filteredEvents" :key="event.event_id">
+                                <tr :class="getSeverityClass(event.severity)">
+                                    <td x-text="formatDate(event.timestamp)"></td>
+                                    <td x-text="formatEventType(event.event_type)"></td>
+                                    <td x-text="event.source_ip || 'N/A'"></td>
+                                    <td x-text="(event.destination_ip ? event.destination_ip + (event.destination_port ? ':' + event.destination_port : '') : 'N/A')"></td>
+                                    <td x-text="event.severity"></td>
+                                    <td x-text="event.description"></td>
+                                    <td>
+                                        <button @click="viewEventDetails(event)" class="btn-view">View</button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="pagination">
+                    <button @click="prevPage" :disabled="currentPage === 1">Previous</button>
+                    <span x-text="'Page ' + currentPage"></span>
+                    <button @click="nextPage" :disabled="!hasMoreEvents">Next</button>
+                </div>
+            </section>
+
+            <!-- Threat Intelligence Section -->
+            <section class="threat-intel">
+                <h2>Threat Intelligence</h2>
+                <div class="filter-container">
+                    <div class="search-box">
+                        <input type="text" placeholder="Search IOCs..." x-model="intelFilters.search" @input="filterIntel">
+                    </div>
+                    <div class="filter-options">
+                        <select x-model="intelFilters.type" @change="filterIntel">
+                            <option value="">All IOC Types</option>
+                            <option value="ip">IP Address</option>
+                            <option value="domain">Domain</option>
+                            <option value="url">URL</option>
+                            <option value="file_hash">File Hash</option>
+                            <option value="email">Email</option>
+                            <option value="user_agent">User Agent</option>
+                        </select>
+                        <button @click="refreshIntel" class="btn-refresh">Refresh</button>
+                    </div>
+                </div>
+                
+                <div class="intel-table-container">
+                    <table class="intel-table">
+                        <thead>
+                            <tr>
+                                <th>Type</th>
+                                <th>Value</th>
+                                <th>Confidence</th>
+                                <th>Severity</th>
+                                <th>First Seen</th>
+                                <th>Last Seen</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="ioc in filteredIntel" :key="ioc.ioc_id">
+                                <tr :class="getSeverityClass(ioc.severity)">
+                                    <td x-text="formatIOCType(ioc.type)"></td>
+                                    <td x-text="ioc.value"></td>
+                                    <td x-text="ioc.confidence + '%'"></td>
+                                    <td x-text="ioc.severity"></td>
+                                    <td x-text="formatDate(ioc.first_seen)"></td>
+                                    <td x-text="formatDate(ioc.last_seen)"></td>
+                                    <td>
+                                        <button @click="viewIntelDetails(ioc)" class="btn-view">View</button>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+
+        <!-- Event Details Modal -->
+        <div class="modal" :class="{ 'show': showEventModal }" @click.self="showEventModal = false">
+            <div class="modal-content">
+                <span class="close" @click="showEventModal = false">&times;</span>
+                <h2>Event Details</h2>
+                <div class="event-details" x-show="selectedEvent">
+                    <div class="detail-item">
+                        <span class="label">Event ID:</span>
+                        <span class="value" x-text="selectedEvent?.event_id"></span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Timestamp:</span>
+                        <span class="value" x-text="formatDate(selectedEvent?.timestamp)"></span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Event Type:</span>
+                        <span class="value" x-text="formatEventType(selectedEvent?.event_type)"></span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Severity:</span>
+                        <span class="value" x-text="selectedEvent?.severity"></span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Source IP:</span>
+                        <span class="value" x-text="selectedEvent?.source_ip || 'N/A'"></span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Source Port:</span>
+                        <span class="value" x-text="selectedEvent?.source_port || 'N/A'"></span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Destination IP:</span>
+                        <span class="value" x-text="selectedEvent?.destination_ip || 'N/A'"></span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Destination Port:</span>
+                        <span class="value" x-text="selectedEvent?.destination_port || 'N/A'"></span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Protocol:</span>
+                        <span class="value" x-text="selectedEvent?.protocol || 'N/A'"></span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Description:</span>
+                        <span class="value" x-text="selectedEvent?.description"></span>
+                    </div>
+                    <div class="detail-item full-width">
+                        <span class="label">Raw Data:</span>
+                        <pre class="raw-data" x-text="formatRawData(selectedEvent?.raw_data)"></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Intel Details Modal -->
+        <div class="modal" :class="{ 'show': showIntelModal }" @click.self="showIntelModal = false">
+            <div class="modal-content">
+                <span class="close" @click="showIntelModal = false">&times;</span>
+                <h2>Threat Intelligence Details</h2>
+                <div class="intel-details" x-show="selectedIntel">
+                    <div class="detail-item">
+                        <span class="label">IOC ID:</span>
+                        <span class="value" x-text="selectedIntel?.ioc_id"></span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Type:</span>
+                        <span class="value" x-text="formatIOCType(selectedIntel?.type)"></span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Value:</span>
+                        <span class="value" x-text="selectedIntel?.value"></span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Confidence:</span>
+                        <span class="value" x-text="selectedIntel?.confidence + '%'"></span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Severity:</span>
+                        <span class="value" x-text="selectedIntel?.severity"></span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">First Seen:</span>
+                        <span class="value" x-text="formatDate(selectedIntel?.first_seen)"></span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Last Seen:</span>
+                        <span class="value" x-text="formatDate(selectedIntel?.last_seen)"></span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Expiration:</span>
+                        <span class="value" x-text="selectedIntel?.expiration ? formatDate(selectedIntel.expiration) : 'N/A'"></span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="label">Source:</span>
+                        <span class="value" x-text="selectedIntel?.source || 'N/A'"></span>
+                    </div>
+                    <div class="detail-item full-width">
+                        <span class="label">Description:</span>
+                        <span class="value" x-text="selectedIntel?.description || 'N/A'"></span>
+                    </div>
+                    <div class="detail-item" x-show="selectedIntel?.tags && selectedIntel.tags.length > 0">
+                        <span class="label">Tags:</span>
+                        <div class="tags">
+                            <template x-for="tag in selectedIntel?.tags" :key="tag">
+                                <span class="tag" x-text="tag"></span>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/app.js"></script>
+</body>
+</html> 
