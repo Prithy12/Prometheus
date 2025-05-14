@@ -1,0 +1,271 @@
+syntax = "proto3";
+
+package netguardian.schema;
+
+option java_package = "com.netguardian.schema";
+option java_multiple_files = true;
+option go_package = "github.com/netguardian/schema";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
+// Version information for schema evolution
+message SchemaVersion {
+  int32 major = 1;
+  int32 minor = 2;
+  int32 patch = 3;
+}
+
+// Types of indicators of compromise (IOCs)
+enum IOCType {
+  IOC_TYPE_UNSPECIFIED = 0;
+  IP = 1;
+  DOMAIN = 2;
+  URL = 3;
+  FILE_HASH = 4;
+  EMAIL = 5;
+  USER_AGENT = 6;
+}
+
+// Indicator of compromise
+message IOC {
+  // Schema version for backward compatibility
+  SchemaVersion schema_version = 1;
+  
+  // Core IOC fields
+  string ioc_id = 2;
+  IOCType type = 3;
+  string value = 4;
+  uint32 confidence = 5;  // 0-100
+  uint32 severity = 6;    // 0-10
+  google.protobuf.Timestamp first_seen = 7;
+  google.protobuf.Timestamp last_seen = 8;
+  google.protobuf.Timestamp expiration = 9;
+  repeated string tags = 10;
+  string source = 11;
+  string description = 12;
+  google.protobuf.Struct context = 13;
+}
+
+// Threat actor organization/group
+message ThreatActor {
+  string actor_id = 1;
+  string name = 2;
+  repeated string aliases = 3;
+  repeated string motivation = 4;  // FINANCIAL, ESPIONAGE, DISRUPTION, etc.
+  uint32 sophistication_level = 5;  // 1-5
+  google.protobuf.Timestamp first_seen = 6;
+  google.protobuf.Timestamp last_seen = 7;
+  string description = 8;
+  repeated string ttps = 9;  // Tactics, techniques, procedures
+  string country_of_origin = 10;
+  repeated string industries_targeted = 11;
+  repeated string references = 12;
+  google.protobuf.Struct context = 13;
+}
+
+// Vulnerability information
+message Vulnerability {
+  string vulnerability_id = 1;
+  string cve_id = 2;
+  string title = 3;
+  string description = 4;
+  float cvss_score = 5;  // 0.0-10.0
+  string cvss_vector = 6;
+  enum Severity {
+    SEVERITY_UNSPECIFIED = 0;
+    LOW = 1;
+    MEDIUM = 2;
+    HIGH = 3;
+    CRITICAL = 4;
+  }
+  Severity severity = 7;
+  repeated string affected_products = 8;
+  repeated string affected_versions = 9;
+  string remediation = 10;
+  bool exploit_available = 11;
+  string exploit_details = 12;
+  google.protobuf.Timestamp publish_date = 13;
+  bool patch_available = 14;
+  repeated string references = 15;
+}
+
+// Campaign information
+message Campaign {
+  string campaign_id = 1;
+  string name = 2;
+  enum Status {
+    STATUS_UNSPECIFIED = 0;
+    ACTIVE = 1;
+    INACTIVE = 2;
+    CONCLUDED = 3;
+  }
+  Status status = 3;
+  google.protobuf.Timestamp start_date = 4;
+  google.protobuf.Timestamp end_date = 5;
+  string objectives = 6;
+  string description = 7;
+  repeated string ttps = 8;
+  repeated string industries_targeted = 9;
+  repeated string regions_targeted = 10;
+  string threat_actor_id = 11;
+  uint32 confidence_score = 12;  // 0-100
+  repeated CampaignIOC iocs = 13;
+  repeated CampaignTimelineEvent timeline = 14;
+}
+
+// IOC associated with a campaign
+message CampaignIOC {
+  string ioc_id = 1;
+  google.protobuf.Timestamp first_seen = 2;
+  google.protobuf.Timestamp last_seen = 3;
+  string notes = 4;
+}
+
+// Campaign timeline event
+message CampaignTimelineEvent {
+  string event_id = 1;
+  google.protobuf.Timestamp event_time = 2;
+  string event_type = 3;
+  string description = 4;
+  google.protobuf.Struct technical_details = 5;
+}
+
+// Intelligence report
+message IntelligenceReport {
+  string report_id = 1;
+  string title = 2;
+  string summary = 3;
+  string content = 4;
+  enum TLP {
+    TLP_UNSPECIFIED = 0;
+    WHITE = 1;
+    GREEN = 2;
+    AMBER = 3;
+    RED = 4;
+  }
+  TLP tlp = 5;
+  uint32 confidence_level = 6;  // 0-100
+  string source = 7;
+  google.protobuf.Timestamp publication_date = 8;
+  repeated string related_campaign_ids = 9;
+  repeated string related_actor_ids = 10;
+  repeated string related_ioc_ids = 11;
+  repeated string tags = 12;
+  string created_by = 13;
+}
+
+// Service definition for threat intelligence
+service ThreatIntelService {
+  // IOC operations
+  rpc CreateIOC(IOC) returns (IOCResponse);
+  rpc GetIOC(IOCRequest) returns (IOC);
+  rpc UpdateIOC(IOCUpdateRequest) returns (IOC);
+  rpc DeleteIOC(IOCRequest) returns (DeleteResponse);
+  rpc SearchIOCs(IOCQuery) returns (IOCQueryResponse);
+  
+  // Threat actor operations
+  rpc CreateThreatActor(ThreatActor) returns (ThreatActorResponse);
+  rpc GetThreatActor(ThreatActorRequest) returns (ThreatActor);
+  rpc UpdateThreatActor(ThreatActorUpdateRequest) returns (ThreatActor);
+  rpc DeleteThreatActor(ThreatActorRequest) returns (DeleteResponse);
+  
+  // Vulnerability operations
+  rpc CreateVulnerability(Vulnerability) returns (VulnerabilityResponse);
+  rpc GetVulnerability(VulnerabilityRequest) returns (Vulnerability);
+  rpc GetVulnerabilityByCVE(CVERequest) returns (Vulnerability);
+  
+  // Campaign operations
+  rpc CreateCampaign(Campaign) returns (CampaignResponse);
+  rpc GetCampaign(CampaignRequest) returns (Campaign);
+  
+  // Report operations
+  rpc CreateIntelligenceReport(IntelligenceReport) returns (IntelligenceReportResponse);
+  rpc GetIntelligenceReport(IntelligenceReportRequest) returns (IntelligenceReport);
+}
+
+// Request/response types
+message IOCRequest {
+  string ioc_id = 1;
+}
+
+message IOCResponse {
+  string ioc_id = 1;
+  bool success = 2;
+  string error_message = 3;
+}
+
+message IOCUpdateRequest {
+  string ioc_id = 1;
+  IOC ioc = 2;
+}
+
+message IOCQuery {
+  IOCType type = 1;
+  string value = 2;
+  uint32 min_confidence = 3;
+  uint32 min_severity = 4;
+  repeated string tags = 5;
+  string source = 6;
+  uint32 limit = 7;
+  uint32 offset = 8;
+}
+
+message IOCQueryResponse {
+  repeated IOC iocs = 1;
+  uint32 total_count = 2;
+}
+
+message ThreatActorRequest {
+  string actor_id = 1;
+}
+
+message ThreatActorResponse {
+  string actor_id = 1;
+  bool success = 2;
+  string error_message = 3;
+}
+
+message ThreatActorUpdateRequest {
+  string actor_id = 1;
+  ThreatActor actor = 2;
+}
+
+message VulnerabilityRequest {
+  string vulnerability_id = 1;
+}
+
+message CVERequest {
+  string cve_id = 1;
+}
+
+message VulnerabilityResponse {
+  string vulnerability_id = 1;
+  bool success = 2;
+  string error_message = 3;
+}
+
+message CampaignRequest {
+  string campaign_id = 1;
+}
+
+message CampaignResponse {
+  string campaign_id = 1;
+  bool success = 2;
+  string error_message = 3;
+}
+
+message IntelligenceReportRequest {
+  string report_id = 1;
+}
+
+message IntelligenceReportResponse {
+  string report_id = 1;
+  bool success = 2;
+  string error_message = 3;
+}
+
+message DeleteResponse {
+  bool success = 1;
+  string error_message = 2;
+} 

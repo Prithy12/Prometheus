@@ -1,0 +1,255 @@
+syntax = "proto3";
+
+package netguardian.schema;
+
+option java_package = "com.netguardian.schema";
+option java_multiple_files = true;
+option go_package = "github.com/netguardian/schema";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
+// Version information for schema evolution
+message SchemaVersion {
+  int32 major = 1;
+  int32 minor = 2;
+  int32 patch = 3;
+}
+
+// Action types for security response
+enum ActionType {
+  ACTION_TYPE_UNSPECIFIED = 0;
+  BLOCK_IP = 1;
+  BLOCK_DOMAIN = 2;
+  ISOLATE_HOST = 3;
+  KILL_PROCESS = 4;
+  DELETE_FILE = 5;
+  DISABLE_ACCOUNT = 6;
+  FORCE_PASSWORD_RESET = 7;
+  TRIGGER_SCAN = 8;
+  COLLECT_EVIDENCE = 9;
+  APPLY_PATCH = 10;
+  RESTART_SERVICE = 11;
+  CREATE_TICKET = 12;
+  SEND_NOTIFICATION = 13;
+  CUSTOM_ACTION = 14;
+}
+
+// Action status
+enum ActionStatus {
+  ACTION_STATUS_UNSPECIFIED = 0;
+  PENDING = 1;
+  IN_PROGRESS = 2;
+  COMPLETED = 3;
+  FAILED = 4;
+  CANCELLED = 5;
+  TIMEOUT = 6;
+}
+
+// Response action to be taken or that was taken
+message ResponseAction {
+  // Schema version for backward compatibility
+  SchemaVersion schema_version = 1;
+  
+  // Core action fields
+  string action_id = 2;
+  ActionType action_type = 3;
+  ActionStatus status = 4;
+  
+  // Timing information
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+  google.protobuf.Timestamp completed_at = 7;
+  google.protobuf.Timestamp expires_at = 8;
+  
+  // Action parameters
+  google.protobuf.Struct parameters = 9;
+  
+  // Target information
+  string target_id = 10;  // Host ID, network device ID, etc.
+  string target_type = 11;  // HOST, NETWORK_DEVICE, ACCOUNT, etc.
+  string target_name = 12;
+  
+  // Related entities
+  repeated string related_alert_ids = 13;
+  repeated string related_event_ids = 14;
+  
+  // Execution information
+  string executor = 15;  // Component that executed the action
+  string executor_id = 16;  // Instance ID of the executor
+  string result = 17;
+  string error_message = 18;
+  int32 retry_count = 19;
+  int32 max_retries = 20;
+  
+  // Additional context
+  google.protobuf.Struct context = 21;
+  bool requires_approval = 22;
+  string approved_by = 23;
+  google.protobuf.Timestamp approved_at = 24;
+  uint32 priority = 25;  // 1-5, with 1 being highest
+}
+
+// Playbook for automated response
+message Playbook {
+  string playbook_id = 1;
+  string name = 2;
+  string description = 3;
+  repeated PlaybookStep steps = 4;
+  repeated string trigger_conditions = 5;
+  bool enabled = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+  string created_by = 9;
+  string version = 10;
+  bool requires_approval = 11;
+}
+
+// Step in a playbook
+message PlaybookStep {
+  string step_id = 1;
+  string name = 2;
+  ActionType action_type = 3;
+  google.protobuf.Struct parameters = 4;
+  int32 order = 5;
+  string condition = 6;  // Condition for executing this step
+  repeated string depends_on = 7;  // IDs of steps that must complete before this one
+  bool continue_on_failure = 8;
+  int32 retry_count = 9;
+  int32 delay_seconds = 10;  // Delay before executing this step
+}
+
+// Playbook execution record
+message PlaybookExecution {
+  string execution_id = 1;
+  string playbook_id = 2;
+  google.protobuf.Timestamp started_at = 3;
+  google.protobuf.Timestamp completed_at = 4;
+  ActionStatus status = 5;
+  repeated StepExecution steps = 6;
+  string triggered_by = 7;
+  google.protobuf.Struct context = 8;
+}
+
+// Execution of a single step
+message StepExecution {
+  string step_execution_id = 1;
+  string step_id = 2;
+  string action_id = 3;
+  ActionStatus status = 4;
+  google.protobuf.Timestamp started_at = 5;
+  google.protobuf.Timestamp completed_at = 6;
+  string result = 7;
+  string error_message = 8;
+  int32 retry_count = 9;
+}
+
+// Service definition for response actions
+service ResponseActionService {
+  // Action operations
+  rpc CreateAction(ResponseAction) returns (ActionResponse);
+  rpc GetAction(ActionRequest) returns (ResponseAction);
+  rpc UpdateAction(ActionUpdateRequest) returns (ResponseAction);
+  rpc CancelAction(ActionCancelRequest) returns (ActionResponse);
+  rpc ListActions(ActionListRequest) returns (ActionListResponse);
+  
+  // Playbook operations
+  rpc CreatePlaybook(Playbook) returns (PlaybookResponse);
+  rpc GetPlaybook(PlaybookRequest) returns (Playbook);
+  rpc UpdatePlaybook(PlaybookUpdateRequest) returns (Playbook);
+  rpc DeletePlaybook(PlaybookRequest) returns (DeleteResponse);
+  rpc ListPlaybooks(PlaybookListRequest) returns (PlaybookListResponse);
+  
+  // Playbook execution
+  rpc ExecutePlaybook(PlaybookExecuteRequest) returns (PlaybookExecution);
+  rpc GetPlaybookExecution(ExecutionRequest) returns (PlaybookExecution);
+  rpc CancelPlaybookExecution(ExecutionCancelRequest) returns (PlaybookExecution);
+}
+
+// Request/response types
+message ActionRequest {
+  string action_id = 1;
+}
+
+message ActionResponse {
+  string action_id = 1;
+  bool success = 2;
+  string error_message = 3;
+}
+
+message ActionUpdateRequest {
+  string action_id = 1;
+  ActionStatus status = 2;
+  string result = 3;
+  string error_message = 4;
+  google.protobuf.Struct context = 5;
+}
+
+message ActionCancelRequest {
+  string action_id = 1;
+  string reason = 2;
+}
+
+message ActionListRequest {
+  ActionStatus status = 1;
+  ActionType action_type = 2;
+  string target_id = 3;
+  string target_type = 4;
+  google.protobuf.Timestamp start_time = 5;
+  google.protobuf.Timestamp end_time = 6;
+  int32 limit = 7;
+  int32 offset = 8;
+}
+
+message ActionListResponse {
+  repeated ResponseAction actions = 1;
+  int32 total_count = 2;
+}
+
+message PlaybookRequest {
+  string playbook_id = 1;
+}
+
+message PlaybookResponse {
+  string playbook_id = 1;
+  bool success = 2;
+  string error_message = 3;
+}
+
+message PlaybookUpdateRequest {
+  string playbook_id = 1;
+  Playbook playbook = 2;
+}
+
+message PlaybookListRequest {
+  bool include_disabled = 1;
+  string name_contains = 2;
+  int32 limit = 3;
+  int32 offset = 4;
+}
+
+message PlaybookListResponse {
+  repeated Playbook playbooks = 1;
+  int32 total_count = 2;
+}
+
+message PlaybookExecuteRequest {
+  string playbook_id = 1;
+  google.protobuf.Struct context = 2;
+  string target_id = 3;
+  string initiator = 4;
+}
+
+message ExecutionRequest {
+  string execution_id = 1;
+}
+
+message ExecutionCancelRequest {
+  string execution_id = 1;
+  string reason = 2;
+}
+
+message DeleteResponse {
+  bool success = 1;
+  string error_message = 2;
+} 

@@ -1,0 +1,51 @@
+<clickhouse>
+    <users>
+        <default>
+            <password></password>
+            <networks>
+                <ip>::/0</ip>
+            </networks>
+            <profile>default</profile>
+            <quota>default</quota>
+            <access_management>1</access_management>
+        </default>
+        
+        <netguardian>
+            <password_sha256_hex>8b788122df6b5b6c4d44c467a1de63c5c24fe84f9f1f31899d3b1e5d9d08a60d</password_sha256_hex>
+            <networks>
+                <ip>::/0</ip>
+            </networks>
+            <profile>default</profile>
+            <quota>default</quota>
+            <allow_databases>
+                <database>default</database>
+            </allow_databases>
+        </netguardian>
+    </users>
+
+    <profiles>
+        <default>
+            <max_memory_usage>10000000000</max_memory_usage>
+            <max_memory_usage_for_user>10000000000</max_memory_usage_for_user>
+            <max_bytes_before_external_group_by>20000000000</max_bytes_before_external_group_by>
+            <max_bytes_before_external_sort>20000000000</max_bytes_before_external_sort>
+            <max_rows_to_read>1000000000</max_rows_to_read>
+            <max_execution_time>600</max_execution_time>
+            <log_queries>1</log_queries>
+            <log_query_settings>1</log_query_settings>
+        </default>
+    </profiles>
+
+    <quotas>
+        <default>
+            <interval>
+                <duration>3600</duration>
+                <queries>1000</queries>
+                <errors>1000</errors>
+                <result_rows>1000000000</result_rows>
+                <read_rows>1000000000</read_rows>
+                <execution_time>600</execution_time>
+            </interval>
+        </default>
+    </quotas>
+</clickhouse> 
