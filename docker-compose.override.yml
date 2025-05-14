@@ -1,0 +1,160 @@
+version: '3.8'
+
+services:
+  # Override event-store configuration
+  event-store:
+    build:
+      context: ./data_layer/event_store
+    image: netguardian/event-store:latest
+    container_name: netguardian-event-store
+    restart: unless-stopped
+    environment:
+      - CLICKHOUSE_USER=netguardian
+      - CLICKHOUSE_PASSWORD=netguardian_secure_password
+      - CLICKHOUSE_DB=security_events
+    ports:
+      - "127.0.0.1:8123:8123"
+      - "127.0.0.1:9000:9000"
+    volumes:
+      - event-data:/var/lib/clickhouse
+    networks:
+      - netguardian-network
+      - data-layer-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+  # Override intelligence-db configuration
+  intelligence-db:
+    build:
+      context: ./data_layer/intelligence_db
+    image: netguardian/intelligence-db:latest
+    container_name: netguardian-intelligence-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=netguardian
+      - POSTGRES_PASSWORD=netguardian_secure_password
+      - POSTGRES_DB=intelligence_db
+      - POSTGRES_INITDB_ARGS=--data-checksums --encoding=UTF8
+      - POSTGRES_HOST_AUTH_METHOD=scram-sha-256
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - intel-data:/var/lib/postgresql/data
+    networks:
+      - netguardian-network
+      - data-layer-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+  # Add evidence-vault service
+  evidence-vault:
+    build:
+      context: ./data_layer/evidence_vault
+    image: netguardian/evidence-vault:latest
+    container_name: netguardian-evidence-vault
+    restart: unless-stopped
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin_secure_password
+      - MINIO_DEFAULT_BUCKETS=evidence-vault
+      - MINIO_STORAGE_CLASS_STANDARD=EC:2
+      - MINIO_BROWSER=on
+      - MINIO_REGION=us-east-1
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - evidence-data:/data
+    networks:
+      - netguardian-network
+      - data-layer-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # Add data-layer-api service
+  data-layer-api:
+    build:
+      context: ./data_layer/api
+    image: netguardian/data-layer-api:latest
+    container_name: netguardian-data-layer-api
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - LOG_LEVEL=info
+      - CLICKHOUSE_HOST=event-store
+      - CLICKHOUSE_PORT=8123
+      - CLICKHOUSE_USER=netguardian
+      - CLICKHOUSE_PASSWORD=netguardian_secure_password
+      - CLICKHOUSE_DB=security_events
+      - POSTGRES_HOST=intelligence-db
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=netguardian
+      - POSTGRES_PASSWORD=netguardian_secure_password
+      - POSTGRES_DB=intelligence_db
+      - POSTGRES_SSL=true
+      - S3_ENDPOINT=http://evidence-vault:9000
+      - S3_ACCESS_KEY=minioadmin
+      - S3_SECRET_KEY=minioadmin_secure_password
+      - S3_BUCKET=evidence-vault
+      - S3_REGION=us-east-1
+      - ENCRYPTION_KEY=0123456789abcdef0123456789abcdef
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - api-logs:/var/log/netguardian
+    depends_on:
+      - event-store
+      - intelligence-db
+      - evidence-vault
+    networks:
+      - netguardian-network
+      - data-layer-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+networks:
+  data-layer-network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  event-data:
+    driver: local
+  intel-data:
+    driver: local
+  evidence-data:
+    driver: local
+  api-logs:
+    driver: local 

@@ -86,7 +86,7 @@ services:
   
   # Data Layer
   event-store:
-    image: clickhouse/clickhouse-server:latest
+    image: netguardian/event-store:latest
     container_name: netguardian-event-store
     restart: unless-stopped
     networks:
@@ -95,17 +95,35 @@ services:
       - event-data:/var/lib/clickhouse
   
   intelligence-db:
-    image: postgres:13-alpine
+    image: netguardian/intelligence-db:latest
     container_name: netguardian-intelligence-db
-    environment:
-      - POSTGRES_USER=netguardian
-      - POSTGRES_PASSWORD=netguardian_secure_password
-      - POSTGRES_DB=intelligence_db
     restart: unless-stopped
     networks:
       - netguardian-network
     volumes:
       - intel-data:/var/lib/postgresql/data
+
+  evidence-vault:
+    image: netguardian/evidence-vault:latest
+    container_name: netguardian-evidence-vault
+    restart: unless-stopped
+    networks:
+      - netguardian-network
+    volumes:
+      - evidence-data:/data
+
+  data-layer-api:
+    image: netguardian/data-layer-api:latest
+    container_name: netguardian-data-layer-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    networks:
+      - netguardian-network
+    depends_on:
+      - event-store
+      - intelligence-db
+      - evidence-vault
   
   # Presentation Layer
   dashboard:
@@ -143,4 +161,6 @@ networks:
 
 volumes:
   event-data:
-  intel-data: 
+  intel-data:
+  evidence-data:
+  api-logs: 
