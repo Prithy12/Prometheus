@@ -3,119 +3,136 @@ version: '3.8'
 services:
   # Sensor Layer
   network-monitor:
-    image: netguardian/network-monitor:latest
+    image: alpine:latest
     container_name: netguardian-network-monitor
+    command: sh -c "echo 'Network monitor placeholder running' && tail -f /dev/null"
     restart: unless-stopped
     networks:
       - netguardian-network
     
   endpoint-agent:
-    image: netguardian/endpoint-agent:latest
+    image: alpine:latest
     container_name: netguardian-endpoint-agent
+    command: sh -c "echo 'Endpoint agent placeholder running' && tail -f /dev/null"
     restart: unless-stopped
     networks:
       - netguardian-network
   
   log-collector:
-    image: netguardian/log-collector:latest
+    image: alpine:latest
     container_name: netguardian-log-collector
+    command: sh -c "echo 'Log collector placeholder running' && tail -f /dev/null"
     restart: unless-stopped
     networks:
       - netguardian-network
   
   threat-feed:
-    image: netguardian/threat-feed:latest
+    image: alpine:latest
     container_name: netguardian-threat-feed
+    command: sh -c "echo 'Threat feed placeholder running' && tail -f /dev/null"
     restart: unless-stopped
     networks:
       - netguardian-network
   
   # Processing Layer
   detection-engine:
-    image: netguardian/detection-engine:latest
+    image: alpine:latest
     container_name: netguardian-detection-engine
+    command: sh -c "echo 'Detection engine placeholder running' && tail -f /dev/null"
     restart: unless-stopped
     networks:
       - netguardian-network
   
   analytics-pipeline:
-    image: netguardian/analytics-pipeline:latest
+    image: alpine:latest
     container_name: netguardian-analytics-pipeline
+    command: sh -c "echo 'Analytics pipeline placeholder running' && tail -f /dev/null"
     restart: unless-stopped
     networks:
       - netguardian-network
   
   correlation-service:
-    image: netguardian/correlation-service:latest
+    image: alpine:latest
     container_name: netguardian-correlation-service
+    command: sh -c "echo 'Correlation service placeholder running' && tail -f /dev/null"
     restart: unless-stopped
     networks:
       - netguardian-network
   
   ml-component:
-    image: netguardian/ml-component:latest
+    image: alpine:latest
     container_name: netguardian-ml-component
+    command: sh -c "echo 'ML component placeholder running' && tail -f /dev/null"
     restart: unless-stopped
     networks:
       - netguardian-network
   
   # Response Layer
   automation-controller:
-    image: netguardian/automation-controller:latest
+    image: alpine:latest
     container_name: netguardian-automation-controller
+    command: sh -c "echo 'Automation controller placeholder running' && tail -f /dev/null"
     restart: unless-stopped
     networks:
       - netguardian-network
   
   firewall-manager:
-    image: netguardian/firewall-manager:latest
+    image: alpine:latest
     container_name: netguardian-firewall-manager
+    command: sh -c "echo 'Firewall manager placeholder running' && tail -f /dev/null"
     restart: unless-stopped
     networks:
       - netguardian-network
   
   # Data Layer
   event-store:
-    image: netguardian/event-store:latest
+    image: clickhouse/clickhouse-server:latest
     container_name: netguardian-event-store
     restart: unless-stopped
     networks:
       - netguardian-network
     volumes:
-      - event-data:/data
+      - event-data:/var/lib/clickhouse
   
   intelligence-db:
-    image: netguardian/intelligence-db:latest
+    image: postgres:13-alpine
     container_name: netguardian-intelligence-db
+    environment:
+      - POSTGRES_USER=netguardian
+      - POSTGRES_PASSWORD=netguardian_secure_password
+      - POSTGRES_DB=intelligence_db
     restart: unless-stopped
     networks:
       - netguardian-network
     volumes:
-      - intel-data:/data
+      - intel-data:/var/lib/postgresql/data
   
   # Presentation Layer
   dashboard:
-    image: netguardian/dashboard:latest
+    image: nginx:alpine
     container_name: netguardian-dashboard
     restart: unless-stopped
     ports:
       - "8080:80"
     networks:
       - netguardian-network
+    volumes:
+      - ./presentation_layer/dashboard:/usr/share/nginx/html
   
   api-gateway:
-    image: netguardian/api-gateway:latest
+    image: nginx:alpine
     container_name: netguardian-api-gateway
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "8000:80"
     networks:
       - netguardian-network
   
   # AI Layer
   security-orchestrator:
-    image: netguardian/security-orchestrator:latest
+    image: alpine:latest
     container_name: netguardian-security-orchestrator
+    command: sh -c "echo 'Security orchestrator placeholder running' && tail -f /dev/null"
     restart: unless-stopped
     networks:
       - netguardian-network
