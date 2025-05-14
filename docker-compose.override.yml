@@ -140,6 +140,41 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
+      
+  # Add API Gateway service
+  api-gateway:
+    build:
+      context: ./api_gateway
+    image: netguardian/api-gateway:latest
+    container_name: netguardian-api-gateway
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=5000
+      - LOG_LEVEL=info
+      - JWT_SECRET=netguardian_production_secret_key
+      - JWT_EXPIRES_IN=24h
+      - DATA_LAYER_API_URL=http://data-layer-api:3000
+      - API_TIMEOUT=5000
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - gateway-logs:/var/log/netguardian
+    depends_on:
+      - data-layer-api
+    networks:
+      - netguardian-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
 networks:
   data-layer-network:
@@ -157,4 +192,6 @@ volumes:
   evidence-data:
     driver: local
   api-logs:
+    driver: local
+  gateway-logs:
     driver: local 
