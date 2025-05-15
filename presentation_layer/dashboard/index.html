@@ -32,8 +32,8 @@
                     <label for="password">Password</label>
                     <input type="password" id="password" x-model="loginForm.password" required>
                 </div>
-                <div class="form-group" x-show="loginError">
-                    <p class="error" x-text="loginError"></p>
+                <div class="form-group" x-show="loginForm.error">
+                    <p class="error" x-text="loginForm.error"></p>
                 </div>
                 <button type="submit" class="btn-primary">Login</button>
             </form>

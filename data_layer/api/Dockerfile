@@ -10,7 +10,7 @@ RUN apk add --no-cache curl openssl
 COPY package*.json ./
 
 # Install app dependencies
-RUN npm ci --only=production
+RUN npm install --production
 
 # Copy application files
 COPY . .

@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  dashboard:
+    build:
+      context: ./presentation_layer/dashboard
+    image: netguardian/dashboard:latest
+    container_name: netguardian-dashboard
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./presentation_layer/dashboard:/usr/share/nginx/html:ro
